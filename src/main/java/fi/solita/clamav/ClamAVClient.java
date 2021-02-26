@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -46,7 +45,7 @@ public class ClamAVClient {
 
   /**
    * Run PING command to clamd to test it is responding.
-   * 
+   *
    * @return true if the server responded with proper ping reply.
    */
   public boolean ping() throws IOException {
@@ -72,15 +71,15 @@ public class ClamAVClient {
    * Since the parameter InputStream is not reset, you can not use the stream afterwards, as it will be left in a EOF-state.
    * If your goal is to scan some data, and then pass that data further, consider using {@link #scan(byte[]) scan(byte[] in)}.
    * <p>
-   * Opens a socket and reads the reply. Parameter input stream is NOT closed. 
-   * 
+   * Opens a socket and reads the reply. Parameter input stream is NOT closed.
+   *
    * @param is data to scan. Not closed by this method!
    * @return server reply
    */
   public byte[] scan(InputStream is) throws IOException {
     try (Socket s = new Socket(hostName,port); OutputStream outs = new BufferedOutputStream(s.getOutputStream())) {
-      s.setSoTimeout(timeout); 
-      
+      s.setSoTimeout(timeout);
+
       // handshake
       outs.write(asBytes("zINSTREAM\0"));
       outs.flush();
@@ -97,7 +96,7 @@ public class ClamAVClient {
           outs.write(chunkSize);
           outs.write(chunk, 0, read);
           if (clamIs.available() > 0) {
-            // reply from server before scan command has been terminated. 
+            // reply from server before scan command has been terminated.
             byte[] reply = assertSizeLimit(readAll(clamIs));
             throw new IOException("Scan aborted. Reply from server: " + new String(reply, StandardCharsets.US_ASCII));
           }
@@ -110,12 +109,12 @@ public class ClamAVClient {
         // read reply
         return assertSizeLimit(readAll(clamIs));
       }
-    } 
+    }
   }
 
   /**
    * Scans bytes for virus by passing the bytes to clamav
-   * 
+   *
    * @param in data to scan
    * @return server reply
    **/
@@ -134,12 +133,13 @@ public class ClamAVClient {
     String r = new String(reply, StandardCharsets.US_ASCII);
     return (r.contains("OK") && !r.contains("FOUND"));
   }
-  
+
 
   private byte[] assertSizeLimit(byte[] reply) {
     String r = new String(reply, StandardCharsets.US_ASCII);
-    if (r.startsWith("INSTREAM size limit exceeded.")) 
-    	throw new ClamAVSizeLimitException("Clamd size limit exceeded. Full reply from server: " + r);
+    if (r.startsWith("INSTREAM size limit exceeded.")) {
+        throw new ClamAVSizeLimitException("Clamd size limit exceeded. Full reply from server: " + r);
+    }
     return reply;
   }
 
