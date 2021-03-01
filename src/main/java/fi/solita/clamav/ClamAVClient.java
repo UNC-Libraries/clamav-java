@@ -21,6 +21,8 @@ public class ClamAVClient {
   private int port;
   private int timeout;
 
+  private long maxStreamSize = 0;
+
   // "do not exceed StreamMaxLength as defined in clamd.conf, otherwise clamd will reply with INSTREAM size limit exceeded and close the connection."
   private static final int CHUNK_SIZE = 2048;
   private static final int DEFAULT_TIMEOUT = 500;
@@ -99,11 +101,18 @@ public class ClamAVClient {
       outs.write(asBytes("zINSTREAM\0"));
       outs.flush();
       byte[] chunk = new byte[CHUNK_SIZE];
+      long streamedSize = 0;
 
       try (InputStream clamIs = s.getInputStream()) {
         // send data
         int read = is.read(chunk);
         while (read >= 0) {
+          // If maxStreamSize is restricted and buffered data would exceed size, stop streaming.
+          streamedSize += read;
+          if (maxStreamSize != 0 && streamedSize > maxStreamSize) {
+              break;
+          }
+
           // The format of the chunk is: '<length><data>' where <length> is the size of the following data in bytes expressed as a 4 byte unsigned
           // integer in network byte order and <data> is the actual chunk. Streaming is terminated by sending a zero-length chunk.
           byte[] chunkSize = ByteBuffer.allocate(4).putInt(read).array();
@@ -222,5 +231,18 @@ public class ClamAVClient {
         tmp.write(buf, 0, read);
     }
     return tmp.toByteArray();
+  }
+
+  /**
+   * Set the max stream size. If this is set to 0, then the stream
+   * can be of unlimited length. If set to any other positive value, then
+   * at most only the first maxStreamSize bytes will be streamed. This
+   * parallels the behavior of MaxFileSize.
+   *
+   * Generally should be the same as your StreamMaxLength.
+   * @param maxStreamSize
+   */
+  public void setMaxStreamSize(long maxStreamSize) {
+    this.maxStreamSize = maxStreamSize;
   }
 }

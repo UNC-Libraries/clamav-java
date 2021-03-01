@@ -1,5 +1,6 @@
 package fi.solita.clamav;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -10,17 +11,17 @@ import java.net.UnknownHostException;
 import org.junit.Test;
 
 /**
- * These tests assume clamd is running and responding in the virtual machine. 
+ * These tests assume clamd is running and responding in the virtual machine.
  */
 public class InstreamTest {
 
   private static String CLAMAV_HOST = "localhost";
-  
+
   private byte[] scan(byte[] input) throws UnknownHostException, IOException  {
     ClamAVClient cl = new ClamAVClient(CLAMAV_HOST, 3310);
     return cl.scan(input);
   }
-  
+
   private byte[] scan(InputStream input) throws UnknownHostException, IOException  {
     ClamAVClient cl = new ClamAVClient(CLAMAV_HOST, 3310);
     return cl.scan(input);
@@ -30,7 +31,7 @@ public class InstreamTest {
     byte[] r = scan("alsdklaksdla".getBytes("ASCII"));
     assertTrue(ClamAVClient.isCleanReply(r));
   }
-  
+
   @Test
   public void testPositive() throws UnknownHostException, IOException {
     // http://www.eicar.org/86-0-Intended-use.html
@@ -45,14 +46,14 @@ public class InstreamTest {
       byte[] r = scan(multipleChunks);
       assertTrue(ClamAVClient.isCleanReply(r));
   }
-  
+
   @Test
   public void testChunkLimit() throws UnknownHostException, IOException {
       byte[] maximumChunk = new byte[2048];
       byte[] r = scan(maximumChunk);
       assertTrue(ClamAVClient.isCleanReply(r));
   }
-  
+
   @Test
   public void testZeroBytes() throws UnknownHostException, IOException {
       byte[] r = scan(new byte[]{});
@@ -61,6 +62,15 @@ public class InstreamTest {
 
   @Test(expected = ClamAVSizeLimitException.class)
   public void testSizeLimit() throws UnknownHostException, IOException {
-	  scan(new SlowInputStream());
+      scan(new SlowInputStream());
+  }
+
+  // Only the first 10000 bytes will be scanned, so it will not reach size limit
+  @Test
+  public void testMaxStreamSize() throws UnknownHostException, IOException {
+      ClamAVClient cl = new ClamAVClient(CLAMAV_HOST, 3310);
+      cl.setMaxStreamSize(10000);
+      ScanResult result = cl.scanWithResult(new SlowInputStream());
+      assertEquals(ScanResult.Status.PASSED, result.getStatus());
   }
 }
