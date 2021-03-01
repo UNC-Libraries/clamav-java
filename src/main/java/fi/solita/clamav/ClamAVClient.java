@@ -66,6 +66,20 @@ public class ClamAVClient {
   }
 
   /**
+   * Streams the given data to the server in chunks and returns a ScanResult indicating the outcome.
+   *
+   * @param is data to scan. Not closed by this method!
+   * @return server reply as ScanResult
+   */
+  public ScanResult scanWithResult(InputStream is) {
+      try {
+          return new ScanResult(scan(is));
+      } catch (Exception e) {
+          return new ScanResult(e);
+      }
+  }
+
+  /**
    * Streams the given data to the server in chunks. The whole data is not kept in memory.
    * This method is preferred if you don't want to keep the data in memory, for instance by scanning a file on disk.
    * Since the parameter InputStream is not reset, you can not use the stream afterwards, as it will be left in a EOF-state.
@@ -110,6 +124,20 @@ public class ClamAVClient {
         return assertSizeLimit(readAll(clamIs));
       }
     }
+  }
+
+  /**
+   * Scans bytes for virus by passing the bytes to clamav
+   *
+   * @param in data to scan
+   * @return server reply as a ScanResult
+   **/
+  public ScanResult scanWithResult(byte[] in) {
+      try {
+          return new ScanResult(scan(in));
+      } catch (Exception e) {
+          return new ScanResult(e);
+      }
   }
 
   /**
