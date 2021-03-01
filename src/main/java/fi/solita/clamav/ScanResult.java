@@ -25,20 +25,19 @@ import java.nio.charset.StandardCharsets;
  */
 public class ScanResult {
 
-    private String result = "";
-    private Status status = Status.FAILED;
-    private String signature = "";
-    private Exception exception = null;
+    private String result;
+    private Status status = Status.ERROR;
+    private String signature;
+    private Exception exception;
 
-    public enum Status { PASSED, FAILED, ERROR }
+    public enum Status { PASSED, FOUND, ERROR }
 
-    public static final String STREAM_PREFIX = "stream: ";
-    public static final String RESPONSE_OK = "stream: OK";
+    public static final String RESPONSE_OK = ": OK";
     public static final String FOUND_SUFFIX = "FOUND";
     public static final String ERROR_SUFFIX = "ERROR";
 
     public ScanResult(byte[] result) {
-        this.result = new String(result, StandardCharsets.US_ASCII);
+        setResult(new String(result, StandardCharsets.US_ASCII));
     }
 
     public ScanResult(Exception ex) {
@@ -65,15 +64,18 @@ public class ScanResult {
     }
 
     public void setResult(String result) {
-        this.result = result;
-
         if (result == null) {
             setStatus(Status.ERROR);
-        } else if (RESPONSE_OK.equals(result)) {
+        }
+        String normalized = result.replaceAll("\0", "").trim();
+        this.result = normalized;
+        if (normalized.endsWith(RESPONSE_OK)) {
             setStatus(Status.PASSED);
-        } else if (result.endsWith(FOUND_SUFFIX)) {
-            setSignature(result.substring(STREAM_PREFIX.length(), result.lastIndexOf(FOUND_SUFFIX) - 1));
-        } else if (result.endsWith(ERROR_SUFFIX)) {
+        } else if (normalized.endsWith(FOUND_SUFFIX)) {
+            setStatus(Status.FOUND);
+            setSignature(normalized.substring(normalized.lastIndexOf(':') + 2,
+                    normalized.lastIndexOf(FOUND_SUFFIX) - 1));
+        } else if (normalized.endsWith(ERROR_SUFFIX)) {
             setStatus(Status.ERROR);
         }
     }

@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 /**
@@ -149,6 +150,41 @@ public class ClamAVClient {
   public byte[] scan(byte[] in) throws IOException {
     ByteArrayInputStream bis = new ByteArrayInputStream(in);
     return scan(bis);
+  }
+
+  /**
+   * Perform a SCAN of the given file path.
+   * @param path Path of the file to scan
+   * @return server reply as a ScanResult
+   * @throws IOException
+   */
+  public ScanResult scanWithResult(Path path) {
+      try {
+          return new ScanResult(scan(path));
+      } catch (Exception e) {
+          return new ScanResult(e);
+      }
+  }
+
+  /**
+   * Perform a SCAN of the given file path.
+   * @param path Path of the file to scan
+   * @return server reply
+   * @throws IOException
+   */
+  public byte[] scan(Path path) throws IOException {
+      try (Socket s = new Socket(hostName, port);
+           OutputStream outs = new BufferedOutputStream(s.getOutputStream())) {
+          s.setSoTimeout(timeout);
+
+          // handshake
+          outs.write(asBytes("SCAN " + path.toAbsolutePath() + "\n"));
+          outs.flush();
+
+          try (InputStream clamIs = s.getInputStream()) {
+              return assertSizeLimit(readAll(clamIs));
+          }
+      }
   }
 
   /**
