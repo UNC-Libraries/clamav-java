@@ -17,9 +17,13 @@ package fi.solita.clamav;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -42,23 +46,26 @@ public class ScanTest {
     @Before
     public void setup() throws Exception {
         tmpFolder.create();
+        // Make sure clam has access to read the directory we are writing files to
+        Files.setPosixFilePermissions(tmpFolder.getRoot().toPath(),
+                PosixFilePermissions.fromString("rwxr-xr-x"));
         client = new ClamAVClient(CLAMAV_HOST, 3310);
     }
 
     @Test
     public void testPositive() throws Exception {
-        File scanFile = tmpFolder.newFile();
-        Files.write(scanFile.toPath(), EICAR.getBytes("ASCII"));
-        ScanResult result = client.scanWithResult(scanFile.toPath());
+        Path scanPath = createTestFile(EICAR);
+
+        ScanResult result = client.scanWithResult(scanPath);
         assertEquals(ScanResult.Status.FOUND, result.getStatus());
-        assertEquals("Win.Test.EICAR_HDB-1", result.getSignature());
+        String sig = result.getSignature().toLowerCase();
+        assertTrue("Signature did not list eicar", sig.contains("eicar"));
     }
 
     @Test
     public void testPassed() throws Exception {
-        File scanFile = tmpFolder.newFile();
-        Files.write(scanFile.toPath(), "Random text here".getBytes());
-        ScanResult result = client.scanWithResult(scanFile.toPath());
+        Path scanPath = createTestFile("Random text here");
+        ScanResult result = client.scanWithResult(scanPath);
         assertEquals(ScanResult.Status.PASSED, result.getStatus());
         assertNull(result.getSignature());
     }
@@ -69,5 +76,12 @@ public class ScanTest {
         ScanResult result = client.scanWithResult(scanFile.toPath());
         assertEquals(ScanResult.Status.ERROR, result.getStatus());
         assertNull(result.getSignature());
+    }
+
+    private Path createTestFile(String content) throws IOException {
+        Path scanPath = tmpFolder.newFile().toPath();
+        Files.write(scanPath, content.getBytes("ASCII"));
+        Files.setPosixFilePermissions(scanPath, PosixFilePermissions.fromString("rw-rw-r--"));
+        return scanPath;
     }
 }
