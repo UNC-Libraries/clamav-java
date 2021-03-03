@@ -17,6 +17,9 @@ public class InstreamTest {
 
   private static String CLAMAV_HOST = "localhost";
 
+  private static final String EICAR =
+          "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
+
   private byte[] scan(byte[] input) throws UnknownHostException, IOException  {
     ClamAVClient cl = new ClamAVClient(CLAMAV_HOST, 3310);
     return cl.scan(input);
@@ -35,8 +38,8 @@ public class InstreamTest {
   @Test
   public void testPositive() throws UnknownHostException, IOException {
     // http://www.eicar.org/86-0-Intended-use.html
-    byte[] EICAR = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*".getBytes("ASCII");
-    byte[] r =  scan(EICAR);
+    byte[] bytes = EICAR.getBytes("ASCII");
+    byte[] r =  scan(bytes);
     assertFalse(ClamAVClient.isCleanReply(r));
   }
 
@@ -72,5 +75,15 @@ public class InstreamTest {
       cl.setMaxStreamSize(10000);
       ScanResult result = cl.scanWithResult(new SlowInputStream());
       assertEquals(ScanResult.Status.PASSED, result.getStatus());
+  }
+
+  //Only the first 10000 bytes will be scanned, so it will not reach size limit
+  @Test
+  public void testMaxStreamSizePositive() throws UnknownHostException, IOException {
+     ClamAVClient cl = new ClamAVClient(CLAMAV_HOST, 3310);
+     cl.setMaxStreamSize(10000);
+     byte[] bytes = EICAR.getBytes("ASCII");
+     ScanResult result = cl.scanWithResult(bytes);
+     assertEquals(ScanResult.Status.FOUND, result.getStatus());
   }
 }
