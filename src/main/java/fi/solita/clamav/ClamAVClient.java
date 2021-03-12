@@ -182,18 +182,18 @@ public class ClamAVClient {
    * @throws IOException
    */
   public byte[] scan(Path path) throws IOException {
-      try (Socket s = new Socket(hostName, port);
-           OutputStream outs = new BufferedOutputStream(s.getOutputStream())) {
-          s.setSoTimeout(timeout);
+	  try (Socket s = new Socket(hostName, port);
+	  OutputStream outs = new BufferedOutputStream(s.getOutputStream())) {
+		  s.setSoTimeout(timeout);
 
-          // handshake
-          outs.write(asBytes("SCAN " + path.toAbsolutePath() + "\n"));
-          outs.flush();
+		  // handshake
+		  outs.write(asBytes("SCAN " + path.toAbsolutePath() + "\n"));
+		  outs.flush();
 
-          try (InputStream clamIs = s.getInputStream()) {
-              return assertSizeLimit(readAll(clamIs));
-          }
-      }
+		  try (InputStream clamIs = s.getInputStream()) {
+			  return assertSizeLimit(readAll(clamIs));
+		  }
+	  }
   }
 
   /**
