@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 /**
@@ -19,6 +20,8 @@ public class ClamAVClient {
   private String hostName;
   private int port;
   private int timeout;
+
+  private long maxStreamSize = 0;
 
   // "do not exceed StreamMaxLength as defined in clamd.conf, otherwise clamd will reply with INSTREAM size limit exceeded and close the connection."
   private static final int CHUNK_SIZE = 2048;
@@ -66,6 +69,20 @@ public class ClamAVClient {
   }
 
   /**
+   * Streams the given data to the server in chunks and returns a ScanResult indicating the outcome.
+   *
+   * @param is data to scan. Not closed by this method!
+   * @return server reply as ScanResult
+   */
+  public ScanResult scanWithResult(InputStream is) {
+      try {
+          return new ScanResult(scan(is));
+      } catch (Exception e) {
+          return new ScanResult(e);
+      }
+  }
+
+  /**
    * Streams the given data to the server in chunks. The whole data is not kept in memory.
    * This method is preferred if you don't want to keep the data in memory, for instance by scanning a file on disk.
    * Since the parameter InputStream is not reset, you can not use the stream afterwards, as it will be left in a EOF-state.
@@ -84,11 +101,18 @@ public class ClamAVClient {
       outs.write(asBytes("zINSTREAM\0"));
       outs.flush();
       byte[] chunk = new byte[CHUNK_SIZE];
+      long streamedSize = 0;
 
       try (InputStream clamIs = s.getInputStream()) {
         // send data
         int read = is.read(chunk);
         while (read >= 0) {
+          // If maxStreamSize is restricted and buffered data would exceed size, stop streaming.
+          streamedSize += read;
+          if (maxStreamSize != 0 && streamedSize > maxStreamSize) {
+              break;
+          }
+
           // The format of the chunk is: '<length><data>' where <length> is the size of the following data in bytes expressed as a 4 byte unsigned
           // integer in network byte order and <data> is the actual chunk. Streaming is terminated by sending a zero-length chunk.
           byte[] chunkSize = ByteBuffer.allocate(4).putInt(read).array();
@@ -116,11 +140,60 @@ public class ClamAVClient {
    * Scans bytes for virus by passing the bytes to clamav
    *
    * @param in data to scan
+   * @return server reply as a ScanResult
+   **/
+  public ScanResult scanWithResult(byte[] in) {
+      try {
+          return new ScanResult(scan(in));
+      } catch (Exception e) {
+          return new ScanResult(e);
+      }
+  }
+
+  /**
+   * Scans bytes for virus by passing the bytes to clamav
+   *
+   * @param in data to scan
    * @return server reply
    **/
   public byte[] scan(byte[] in) throws IOException {
     ByteArrayInputStream bis = new ByteArrayInputStream(in);
     return scan(bis);
+  }
+
+  /**
+   * Perform a SCAN of the given file path.
+   * @param path Path of the file to scan
+   * @return server reply as a ScanResult
+   * @throws IOException
+   */
+  public ScanResult scanWithResult(Path path) {
+      try {
+          return new ScanResult(scan(path));
+      } catch (Exception e) {
+          return new ScanResult(e);
+      }
+  }
+
+  /**
+   * Perform a SCAN of the given file path.
+   * @param path Path of the file to scan
+   * @return server reply
+   * @throws IOException
+   */
+  public byte[] scan(Path path) throws IOException {
+	  try (Socket s = new Socket(hostName, port);
+	  OutputStream outs = new BufferedOutputStream(s.getOutputStream())) {
+		  s.setSoTimeout(timeout);
+
+		  // handshake
+		  outs.write(asBytes("SCAN " + path.toAbsolutePath() + "\n"));
+		  outs.flush();
+
+		  try (InputStream clamIs = s.getInputStream()) {
+			  return assertSizeLimit(readAll(clamIs));
+		  }
+	  }
   }
 
   /**
@@ -158,5 +231,18 @@ public class ClamAVClient {
         tmp.write(buf, 0, read);
     }
     return tmp.toByteArray();
+  }
+
+  /**
+   * Set the max stream size. If this is set to 0, then the stream
+   * can be of unlimited length. If set to any other positive value, then
+   * at most only the first maxStreamSize bytes will be streamed. This
+   * parallels the behavior of MaxFileSize.
+   *
+   * Generally should be the same as your StreamMaxLength.
+   * @param maxStreamSize
+   */
+  public void setMaxStreamSize(long maxStreamSize) {
+    this.maxStreamSize = maxStreamSize;
   }
 }
