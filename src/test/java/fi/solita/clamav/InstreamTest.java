@@ -1,14 +1,15 @@
 package fi.solita.clamav;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.UnknownHostException;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * These tests assume clamd is running and responding in the virtual machine.
@@ -63,9 +64,11 @@ public class InstreamTest {
       assertTrue(ClamAVClient.isCleanReply(r));
   }
 
-  @Test(expected = ClamAVSizeLimitException.class)
+  @Test
   public void testSizeLimit() throws UnknownHostException, IOException {
-      scan(new SlowInputStream());
+      Assertions.assertThrows(ClamAVSizeLimitException.class, () -> {
+          scan(new SlowInputStream());
+      });
   }
 
   // Only the first 10000 bytes will be scanned, so it will not reach size limit
