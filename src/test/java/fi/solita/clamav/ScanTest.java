@@ -78,6 +78,7 @@ public class ScanTest {
 
     private Path createTestFile(String content) throws IOException {
         Path scanPath = tmpFolder.resolve("scan");
+        Files.createFile(scanPath);
         Files.write(scanPath, content.getBytes("ASCII"));
         Files.setPosixFilePermissions(scanPath, PosixFilePermissions.fromString("rw-rw-r--"));
         return scanPath;
