@@ -43,12 +43,10 @@ public class ScanTest {
 
     @BeforeEach
     public void setup() throws Exception {
-        System.out.println("====During setup " + tmpFolder);
         // Make sure clam has access to read the directory we are writing files to
         Files.setPosixFilePermissions(tmpFolder,
                 PosixFilePermissions.fromString("rwxr-xr-x"));
         client = new ClamAVClient(CLAMAV_HOST, 3310);
-        System.out.println("====End setup " + tmpFolder);
     }
 
     @Test
@@ -78,7 +76,6 @@ public class ScanTest {
     }
 
     private Path createTestFile(String content) throws IOException {
-        System.out.println("====createTestFile " + tmpFolder);
         Path scanPath = tmpFolder.resolve("scan");
         Files.createFile(scanPath);
         Files.write(scanPath, content.getBytes("ASCII"));
