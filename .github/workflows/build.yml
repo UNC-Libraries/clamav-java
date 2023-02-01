@@ -31,9 +31,5 @@ jobs:
         path: ~/.m2
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
-    - name: Dependency tree
-      run: mvn dependency:tree
-    - name: version
-      run: mvn --version
     - name: Build and test with Maven
       run: mvn -B -U clean install -Djava.io.tmpdir=/tmp
